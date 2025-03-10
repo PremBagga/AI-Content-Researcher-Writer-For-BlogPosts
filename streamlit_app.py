@@ -1,3 +1,8 @@
+import sys
+import pysqlite3
+sys.modules["sqlite3"] = pysqlite3
+
+
 from crewai import Agent, Task, Crew, LLM
 from crewai_tools import SerperDevTool
 from dotenv import load_dotenv
