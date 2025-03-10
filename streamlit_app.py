@@ -1,21 +1,24 @@
-import sys
-import pysqlite3
-sys.modules["sqlite3"] = pysqlite3
-
-
+import os
 from crewai import Agent, Task, Crew, LLM
 from crewai_tools import SerperDevTool
 from dotenv import load_dotenv
 import streamlit as st
+import re  # Added for filename sanitization
 
 # Load environment variables
 load_dotenv()
+
+# Validate API Key
+groq_api_key = os.getenv("GROQ_API_KEY")
+if not groq_api_key:
+    st.error("❌ Missing API Key! Please check your `.env` file.")
+    st.stop()  # Stop execution if API key is missing
 
 # Streamlit page configuration
 st.set_page_config(page_title="Content Researcher & Writer", page_icon="✍️", layout="wide")
 
 # Title and Description
-st.title("📝 Content Researcher & Writer, By Prem Bagga")
+st.title("📝 Content Researcher & Writer - By Prem Bagga")
 st.markdown("Generate blog posts about any topic using AI agents.")
 
 # Sidebar Configuration
@@ -46,14 +49,19 @@ with st.sidebar:
         """)
 
 
+def sanitize_filename(name):
+    """Remove special characters from the filename to prevent errors."""
+    return re.sub(r'[^a-zA-Z0-9_\-]', '_', name.lower().replace(' ', '_'))
+
+
 def generate_content(topic):
     """Function to generate content using CrewAI agents."""
     if not topic.strip():
         st.error("⚠️ Please enter a topic before generating content.")
         return ""
 
-    # llm = LLM(model="deepseek-ai/deepseek-r1")
-    llm = LLM(model="groq/deepseek-r1-distill-llama-70b")
+    # Initialize LLM
+    llm = LLM(model="groq/deepseek-r1-distill-llama-70b", api_key=groq_api_key)
 
     # Web Search Tool
     search_tool = SerperDevTool(n=10)
@@ -123,7 +131,13 @@ def generate_content(topic):
         verbose=False
     )
 
-    return crew.kickoff(inputs={"topic": topic})
+    # Run CrewAI with Error Handling
+    try:
+        result = crew.kickoff(inputs={"topic": topic})
+        return result
+    except Exception as e:
+        st.error(f"❌ An error occurred: {str(e)}")
+        return ""
 
 
 # Main Content Generation
@@ -136,10 +150,11 @@ if generate_button:
                 st.markdown(result)
 
                 # Download Button
+                safe_filename = sanitize_filename(topic)
                 st.download_button(
                     label="📥 Download Content",
                     data=result,
-                    file_name=f"{topic.lower().replace(' ', '_')}_article.md",
+                    file_name=f"{safe_filename}_article.md",
                     mime="text/markdown"
                 )
         except Exception as e:
