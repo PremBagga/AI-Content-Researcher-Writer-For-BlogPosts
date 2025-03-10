@@ -2,4 +2,4 @@ crewai
 crewai-tools
 python-dotenv
 streamlit
-crewai groq
+groq
